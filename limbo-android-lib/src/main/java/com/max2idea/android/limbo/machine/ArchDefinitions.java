@@ -189,11 +189,15 @@ public class ArchDefinitions {
         }
         return arrList;
     }
+
+    // 修改：添加 usb-uhci 控制器。
+    // 这样也方便了某些人的考古旧版本 Windows 工作
     public static ArrayList<String> getUSBValues(Context context) {
         ArrayList<String> usbValues = new ArrayList<>();
         usbValues.add(context.getString(R.string.usbehci));
         usbValues.add(context.getString(R.string.qemuxhci));
         usbValues.add(context.getString(R.string.usbohci));
+        usbValues.add(context.getString(R.string.usbuhci))
         return usbValues;
     }
 }
