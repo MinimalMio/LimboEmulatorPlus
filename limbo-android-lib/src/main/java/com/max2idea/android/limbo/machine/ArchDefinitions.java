@@ -197,7 +197,7 @@ public class ArchDefinitions {
         usbValues.add(context.getString(R.string.usbehci));
         usbValues.add(context.getString(R.string.qemuxhci));
         usbValues.add(context.getString(R.string.usbohci));
-        usbValues.add(context.getString(R.string.usbuhci))
+        usbValues.add(context.getString(R.string.usbuhci));
         return usbValues;
     }
 }
