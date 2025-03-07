@@ -61,11 +61,11 @@ jobs:
         patch -p1 < ../patches/qemu-5.1.0.patch
 
         # Apply glib patch
-        cd ../glib
+        cd ../glib-2.56.1
         patch -p1 < ../patches/glib-2.56.1.patch
 
         # Apply SDL2 patch
-        cd ../SDL2
+        cd ../SDL2-2.0.8
         patch -p1 < ../patches/sdl2-2.0.8.patch
 
     - name: Build native libraries
