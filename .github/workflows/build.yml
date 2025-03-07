@@ -1,4 +1,4 @@
-name: Build Limbo Emulator (x86 for ARM phones - QEMU 5.1.0)
+name: Build Limbo x86 Emulator for ARM Phones (QEMU 5.1.0)
 
 on:
   push:
@@ -10,87 +10,96 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y make autoconf automake git python3 binutils \
-          libtool-bin pkg-config flex bison gettext texinfo rsync wget xz-utils
+          libtool-bin pkg-config flex bison gettext texinfo rsync xz-utils
 
-    - name: Setup Android NDK (r14b)
+    - name: Setup JDK 8
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'zulu'
+
+    - name: Install Android SDK
+      uses: android-actions/setup-android@v2
+
+    - name: Set up Android NDK (r14b for GCC)
       run: |
+        mkdir -p ~/android-ndk
         wget https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip
-        unzip android-ndk-r14b-linux-x86_64.zip -d $HOME
-        echo "NDK_ROOT=$HOME/android-ndk-r14b" >> $GITHUB_ENV
+        unzip android-ndk-r14b-linux-x86_64.zip -d ~/android-ndk/
+        echo "NDK_ROOT=$HOME/android-ndk/android-ndk-r14b" >> $GITHUB_ENV
 
-    - name: Prepare external libraries
-      working-directory: ./limbo-android-lib/src/main/jni
+    - name: Prepare jni directory
       run: |
-        # Download and extract QEMU 5.1.0
-        wget http://download.qemu.org/qemu-5.1.0.tar.xz -P /tmp/
+        mkdir -p limbo-android-lib/src/main/jni
+        cd limbo-android-lib/src/main/jni
+
+    - name: Download and extract dependencies
+      run: |
+        cd limbo-android-lib/src/main/jni
+        # Download QEMU 5.1.0
+        wget http://download.qemu-project.org/qemu-5.1.0.tar.xz -P /tmp/
         tar -xJf /tmp/qemu-5.1.0.tar.xz
         mv qemu-5.1.0 qemu
 
-        # Download and extract other libraries
-        libs=(
-          "glib/2.56/glib-2.56.1.tar.xz"
-          "libffi/libffi-3.3.tar.gz"
-          "pixman-0.40.0.tar.gz"
-          "SDL2-2.0.8.tar.gz"
-        )
-        urls=(
-          "https://ftp.gnome.org/pub/GNOME/sources/glib/2.56/glib-2.56.1.tar.xz"
-          "https://sourceware.org/pub/libffi/libffi-3.3.tar.gz"
-          "https://www.cairographics.org/releases/pixman-0.40.0.tar.gz"
-          "https://www.libsdl.org/release/SDL2-2.0.8.tar.gz"
-        )
-        
-        for i in "${!urls[@]}"; do
-          wget ${urls[$i]} -P /tmp/
-          tar -xf /tmp/$(basename ${urls[$i]}) -C .
-          mv $(basename ${urls[$i]} | sed 's/\.tar.*//') $(basename ${libs[$i]} | cut -d'/' -f1)
-        done
+        # Download other dependencies
+        wget https://ftp.gnome.org/pub/GNOME/sources/glib/2.56/glib-2.56.1.tar.xz -P /tmp/
+        tar -xJf /tmp/glib-2.56.1.tar.xz
+        mv glib-2.56.1 glib
+
+        wget https://sourceware.org/pub/libffi/libffi-3.3.tar.gz -P /tmp/
+        tar -xzf /tmp/libffi-3.3.tar.gz
+        mv libffi-3.3 libffi
+
+        wget https://www.cairographics.org/releases/pixman-0.40.0.tar.gz -P /tmp/
+        tar -xzf /tmp/pixman-0.40.0.tar.gz
+        mv pixman-0.40.0 pixman
+
+        wget https://www.libsdl.org/release/SDL2-2.0.8.tar.gz -P /tmp/
+        tar -xzf /tmp/SDL2-2.0.8.tar.gz
+        mv SDL2-2.0.8 SDL2
 
     - name: Apply patches
-      working-directory: ./limbo-android-lib/src/main/jni
       run: |
-
-        # DEBUG: i want to see the directory structure QwQ
-        ls
-        
-        # Apply QEMU 5.1.0 patch
-        cd qemu
-        patch -p1 < ../patches/qemu-5.1.0.patch
-
+        cd limbo-android-lib/src/main/jni
+        # Apply QEMU patch
+        cd qemu && patch -p1 < ../patches/qemu-5.1.0.patch
         # Apply glib patch
-        cd ../glib-2.56.1
-        patch -p1 < ../patches/glib-2.56.1.patch
-
+        cd ../glib && patch -p1 < ../patches/glib-2.56.1.patch
         # Apply SDL2 patch
-        cd ../SDL2-2.0.8
-        patch -p1 < ../patches/sdl2-2.0.8.patch
+        cd ../SDL2 && patch -p1 < ../patches/sdl2-2.0.8.patch
 
     - name: Build native libraries
-      working-directory: ./limbo-android-lib/src/main/jni
-      env:
-        BUILD_HOST: arm64-v8a    # For ARM64 devices
-        BUILD_GUEST: x86_64-softmmu
-        USE_QEMU_VERSION: 5.1.0
-        USE_GCC: "true"          # Required for NDK r14b
       run: |
-        make clean
+        cd limbo-android-lib/src/main/jni
+        export BUILD_HOST=armeabi-v7a
+        export BUILD_GUEST=x86_64-softmmu
+        export USE_QEMU_VERSION=5.1.0
+        export NDK_ROOT=$HOME/android-ndk/android-ndk-r14b
+        export USE_GCC=true
+        export USE_AAUDIO=false
         make limbo
+
+    - name: Generate Gradle wrapper
+      run: |
+        gradle wrapper --gradle-version 8.2
 
     - name: Build APK with Gradle
       run: |
-        ./gradlew assembleRelease
-      
+        export ANDROID_SDK_ROOT=$HOME/Android/Sdk
+        cd limbo-android-x86
+        ../limbo-android-lib/gradlew assembleRelease
+
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
-        name: limbo-emulator-x86-arm
+        name: limbo-x86-emulator
         path: |
-          **/build/outputs/apk/**/*.apk
-          **/build/**/*.so
+          limbo-android-x86/build/outputs/apk/release/*.apk
+        if-no-files-found: error
