@@ -1,0 +1,92 @@
+name: Build Limbo Emulator (x86 for ARM phones - QEMU 5.1.0)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y make autoconf automake git python binutils \
+          libtool-bin pkg-config flex bison gettext texinfo rsync wget xz-utils
+
+    - name: Setup Android NDK (r14b)
+      run: |
+        wget https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip
+        unzip android-ndk-r14b-linux-x86_64.zip -d $HOME
+        echo "NDK_ROOT=$HOME/android-ndk-r14b" >> $GITHUB_ENV
+
+    - name: Prepare external libraries
+      working-directory: ./limbo-android-lib/src/main/jni
+      run: |
+        # Download and extract QEMU 5.1.0
+        wget http://download.qemu-project.org/qemu-5.1.0.tar.xz -P /tmp/
+        tar -xJf /tmp/qemu-5.1.0.tar.xz
+        mv qemu-5.1.0 qemu
+
+        # Download and extract other libraries
+        libs=(
+          "glib/2.56/glib-2.56.1.tar.xz"
+          "libffi/libffi-3.3.tar.gz"
+          "pixman-0.40.0.tar.gz"
+          "SDL2-2.0.8.tar.gz"
+        )
+        urls=(
+          "https://ftp.gnome.org/pub/GNOME/sources/glib/2.56/glib-2.56.1.tar.xz"
+          "https://sourceware.org/pub/libffi/libffi-3.3.tar.gz"
+          "https://www.cairographics.org/releases/pixman-0.40.0.tar.gz"
+          "https://www.libsdl.org/release/SDL2-2.0.8.tar.gz"
+        )
+        
+        for i in "${!urls[@]}"; do
+          wget ${urls[$i]} -P /tmp/
+          tar -xf /tmp/$(basename ${urls[$i]}) -C .
+          mv $(basename ${urls[$i]} | sed 's/\.tar.*//') $(basename ${libs[$i]} | cut -d'/' -f1)
+        done
+
+    - name: Apply patches
+      working-directory: ./limbo-android-lib/src/main/jni
+      run: |
+        # Apply QEMU 5.1.0 patch
+        cd qemu
+        patch -p1 < ../patches/qemu-5.1.0.patch
+
+        # Apply glib patch
+        cd ../glib
+        patch -p1 < ../patches/glib-2.56.1.patch
+
+        # Apply SDL2 patch
+        cd ../SDL2
+        patch -p1 < ../patches/sdl2-2.0.8.patch
+
+    - name: Build native libraries
+      working-directory: ./limbo-android-lib/src/main/jni
+      env:
+        BUILD_HOST: arm64-v8a    # For ARM64 devices
+        BUILD_GUEST: x86_64-softmmu
+        USE_QEMU_VERSION: 5.1.0
+        USE_GCC: "true"          # Required for NDK r14b
+      run: |
+        make clean
+        make limbo
+
+    - name: Build APK with Gradle
+      run: |
+        ./gradlew assembleRelease
+      
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: limbo-emulator-x86-arm
+        path: |
+          **/build/outputs/apk/**/*.apk
+          **/build/**/*.so
