@@ -19,11 +19,21 @@ jobs:
         sudo apt-get install -y make autoconf automake git python3 binutils \
           libtool-bin pkg-config flex bison gettext texinfo rsync wget xz-utils
 
+    - name: Install Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: 8.2
+    
     - name: Setup Android NDK (r14b)
       run: |
         wget https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip
-        unzip android-ndk-r14b-linux-x86_64.zip -d $HOME
-        echo "NDK_ROOT=$HOME/android-ndk-r14b" >> $GITHUB_ENV
+        unzip android-ndk-r23b-linux-x86_64.zip -d $HOME
+        echo "NDK_ROOT=$HOME/android-ndk-r23b" >> $GITHUB_ENV
+    
+    - name: Generate Gradle Wrapper
+      run: |
+        gradle wrapper --gradle-version 8.2
+        chmod +x gradlew
 
     - name: Prepare external libraries
       working-directory: ./limbo-android-lib/src/main/jni
@@ -77,7 +87,7 @@ jobs:
         BUILD_HOST: arm64-v8a    # For ARM64 devices
         BUILD_GUEST: x86_64-softmmu
         USE_QEMU_VERSION: 5.1.0
-        USE_GCC: "true"          # Required for NDK r14b
+        # USE_GCC: "true"
       run: |
         make clean
         make limbo
