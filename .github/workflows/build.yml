@@ -33,25 +33,24 @@ jobs:
         tar -xJf /tmp/qemu-5.1.0.tar.xz
         mv qemu-5.1.0 qemu
 
-        # Download and extract other libraries
-        libs=(
-          "glib/2.56/glib-2.56.1.tar.xz"
-          "libffi/libffi-3.3.tar.gz"
-          "pixman-0.40.0.tar.gz"
-          "SDL2-2.0.8.tar.gz"
-        )
-        urls=(
-          "https://ftp.gnome.org/pub/GNOME/sources/glib/2.56/glib-2.56.1.tar.xz"
-          "https://sourceware.org/pub/libffi/libffi-3.3.tar.gz"
-          "https://www.cairographics.org/releases/pixman-0.40.0.tar.gz"
-          "https://www.libsdl.org/release/SDL2-2.0.8.tar.gz"
-        )
+        wget https://ftp.gnome.org/pub/GNOME/sources/glib/2.56/glib-2.56.1.tar.xz
+        wget https://sourceware.org/pub/libffi/libffi-3.3.tar.gz
+        wget https://www.cairographics.org/releases/pixman-0.40.0.tar.gz
+        wget https://www.libsdl.org/release/SDL2-2.0.8.tar.gz
         
-        for i in "${!urls[@]}"; do
-          wget ${urls[$i]} -P /tmp/
-          tar -xf /tmp/$(basename ${urls[$i]}) -C .
-          mv $(basename ${urls[$i]} | sed 's/\.tar.*//') $(basename ${libs[$i]} | cut -d'/' -f1)
-        done
+        tar xvf glib-2.56.1.tar.xz
+        tar xvf libffi-3.3.tar.gz
+        tar xvf pixman-0.40.0.tar.gz
+        tar xvf SDL2-2.0.8.tar.gz
+        
+        echo "Debug Tag 1"
+        ls
+        echo "Debug Tag 1 complete"
+        
+        mv glib-2.56.1 glib
+        mv libffi-3.3 libffi
+        mv pixman-0.40.0 pixman
+        mv SDL2-2.0.8 SDL2
 
     - name: Apply patches
       working-directory: ./limbo-android-lib/src/main/jni
@@ -65,11 +64,11 @@ jobs:
         patch -p1 < ../patches/qemu-5.1.0.patch
 
         # Apply glib patch
-        cd ../glib-2.56.1
+        cd ../glib
         patch -p1 < ../patches/glib-2.56.1.patch
 
         # Apply SDL2 patch
-        cd ../SDL2-2.0.8
+        cd ../SDL2
         patch -p1 < ../patches/sdl2-2.0.8.patch
 
     - name: Build native libraries
