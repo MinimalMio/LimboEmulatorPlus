@@ -17,7 +17,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y make autoconf automake git python3 binutils \
-          libtool-bin pkg-config flex bison gettext texinfo rsync wget xz-utils
+          libtool-bin pkg-config flex bison gettext texinfo rsync wget xz-utils \
+          gtk-doc-tools
 
     - name: Install Gradle
       uses: gradle/gradle-build-action@v2
