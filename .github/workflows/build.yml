@@ -56,6 +56,10 @@ jobs:
     - name: Apply patches
       working-directory: ./limbo-android-lib/src/main/jni
       run: |
+
+        # DEBUG: i want to see the directory structure QwQ
+        ls
+        
         # Apply QEMU 5.1.0 patch
         cd qemu
         patch -p1 < ../patches/qemu-5.1.0.patch
