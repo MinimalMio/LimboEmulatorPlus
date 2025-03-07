@@ -97,7 +97,7 @@ jobs:
         ../limbo-android-lib/gradlew assembleRelease
 
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: limbo-x86-emulator
         path: |
